@@ -1,11 +1,7 @@
 import { motion } from 'framer-motion';
 import { Brain, Sparkles, GitBranch, Target, FileText, ChevronRight, Info } from 'lucide-react';
 import { fadeInUp, staggerContainer } from '../../utils';
-import {
-  PREDICTION_PIPELINE,
-  SUPPORTED_SCHEMES,
-  REQUIRED_DOCUMENTS,
-} from '../../constants';
+import { PREDICTION_PIPELINE } from '../../constants';
 
 // ─── Icon map for pipeline steps ─────────────────────────────────────────────
 const PIPELINE_ICONS = {
@@ -15,7 +11,17 @@ const PIPELINE_ICONS = {
   confidence:  Target,
 };
 
-// ─── Sub-panel wrapper ────────────────────────────────────────────────────────
+// AutoAI input field descriptions for the info panel
+const FIELD_GUIDE = [
+  { field: 'finyear',           label: 'Financial Year',        hint: 'Format: YYYY-YY e.g. 2023-24' },
+  { field: 'lgdstatecode',      label: 'LGD State Code',        hint: 'Numeric code from Local Government Directory' },
+  { field: 'lgddistrictcode',   label: 'LGD District Code',     hint: 'Numeric district code from LGD portal' },
+  { field: 'totalbeneficiaries',label: 'Total Beneficiaries',   hint: 'All registered beneficiaries in the district' },
+  { field: 'totalaadhaar',      label: 'Aadhaar Linked',        hint: 'Beneficiaries with Aadhaar seeding done' },
+  { field: 'totalmpbilenumber', label: 'Mobile Registered',     hint: 'Beneficiaries with mobile number on record' },
+];
+
+// Sub-panel wrapper
 function PanelSection({ title, icon: Icon, children, delay = 0 }) {
   return (
     <motion.div
@@ -37,12 +43,9 @@ function PanelSection({ title, icon: Icon, children, delay = 0 }) {
   );
 }
 
-// ─── RightPanel ───────────────────────────────────────────────────────────────
-
 /**
- * RightPanel — informational sidebar displayed alongside the EligibilityForm.
- * Shows: prediction pipeline explanation, supported schemes, required documents,
- * and usage tips.
+ * RightPanel — informational sidebar for the government statistics form.
+ * Shows: prediction pipeline, AutoAI field guide, and data tips.
  */
 export default function RightPanel() {
   return (
@@ -60,7 +63,6 @@ export default function RightPanel() {
             const StepIcon = PIPELINE_ICONS[step.id] || Brain;
             return (
               <li key={step.id} className="flex items-start gap-3">
-                {/* Step number + icon */}
                 <div className="flex flex-col items-center gap-1 shrink-0">
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -68,13 +70,10 @@ export default function RightPanel() {
                   >
                     <StepIcon size={15} style={{ color: step.color }} aria-hidden="true" />
                   </div>
-                  {/* Vertical connector */}
                   {index < PREDICTION_PIPELINE.length - 1 && (
                     <div className="w-px h-4 bg-white/8" aria-hidden="true" />
                   )}
                 </div>
-
-                {/* Label + detail */}
                 <div className="flex flex-col gap-0.5 pt-1">
                   <span className="text-xs font-semibold" style={{ color: step.color }}>
                     {step.label}
@@ -87,40 +86,22 @@ export default function RightPanel() {
         </ol>
       </PanelSection>
 
-      {/* ── 2. Supported Schemes ────────────────────────────────── */}
-      <PanelSection title="Supported Welfare Schemes" icon={Sparkles} delay={0.05}>
-        <ul className="flex flex-col gap-2">
-          {SUPPORTED_SCHEMES.map((scheme) => (
-            <li key={scheme.name} className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2 text-xs text-[#c6c6c6]">
+      {/* ── 2. AutoAI Field Guide ────────────────────────────────── */}
+      <PanelSection title="AutoAI Input Fields" icon={FileText} delay={0.05}>
+        <ul className="flex flex-col gap-2.5">
+          {FIELD_GUIDE.map(({ field, label, hint }) => (
+            <li key={field} className="flex flex-col gap-0.5">
+              <span className="flex items-center gap-2 text-xs text-[#c6c6c6] font-medium">
                 <ChevronRight size={11} className="text-[#4589ff] shrink-0" aria-hidden="true" />
-                {scheme.name}
+                {label}
               </span>
-              <span className="shrink-0 text-[10px] font-semibold text-[#8d8d8d] bg-white/5 border border-white/8 rounded-full px-2 py-0.5">
-                {scheme.domain}
-              </span>
+              <span className="text-[11px] text-[#6f6f6f] pl-4">{hint}</span>
             </li>
           ))}
         </ul>
       </PanelSection>
 
-      {/* ── 3. Required Documents ───────────────────────────────── */}
-      <PanelSection title="Required Documents" icon={FileText} delay={0.1}>
-        <ul className="flex flex-col gap-2">
-          {REQUIRED_DOCUMENTS.map((doc) => (
-            <li key={doc} className="flex items-start gap-2 text-xs text-[#8d8d8d]">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#4589ff] mt-1.5 shrink-0" aria-hidden="true" />
-              {doc}
-            </li>
-          ))}
-        </ul>
-        <p className="text-[10px] text-[#6f6f6f] leading-relaxed border-t border-white/6 pt-3 mt-1">
-          Uploading documents is not required at this stage. This checklist helps
-          you prepare for the physical verification step.
-        </p>
-      </PanelSection>
-
-      {/* ── 4. Tips card ────────────────────────────────────────── */}
+      {/* ── 3. Data Tips ─────────────────────────────────────────── */}
       <motion.div
         variants={fadeInUp}
         initial="hidden"
@@ -134,16 +115,15 @@ export default function RightPanel() {
       >
         <div className="flex items-center gap-2">
           <Info size={14} className="text-[#4589ff]" aria-hidden="true" />
-          <h3 className="text-xs font-semibold text-[#4589ff] uppercase tracking-widest">Tips</h3>
+          <h3 className="text-xs font-semibold text-[#4589ff] uppercase tracking-widest">Data Tips</h3>
         </div>
-
         <ul className="flex flex-col gap-2">
           {[
-            'Fill all fields accurately — the AI model uses every data point.',
-            'Annual income should include all household earnings combined.',
-            'Caste / category certificate must be issued by a competent authority.',
-            'BPL status is automatically cross-checked against SECC 2011 data.',
-            'Applications with Aadhaar + bank account get priority routing.',
+            'Use official LGD portal codes for state and district.',
+            'Category totals (SC + ST + Gen + OBC) should equal total beneficiaries.',
+            'Aadhaar count cannot exceed total beneficiaries.',
+            'Mobile numbers include all registered contacts, not unique persons.',
+            'Financial year format must be YYYY-YY (e.g. 2023-24).',
           ].map((tip) => (
             <li key={tip} className="flex items-start gap-2 text-xs text-[#8d8d8d] leading-relaxed">
               <span className="text-[#4589ff] shrink-0 font-bold">›</span>

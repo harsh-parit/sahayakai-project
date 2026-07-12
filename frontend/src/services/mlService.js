@@ -1,43 +1,36 @@
 /**
- * mlService.js — IBM AutoAI / Watsonx.ai prediction service layer.
+ * mlService.js — IBM AutoAI prediction service layer.
  *
  * Architecture:
- *   EligibilityForm  →  predictEligibility(payload)  →  IBM AutoAI endpoint
- *                                                     →  Watsonx.ai explanation endpoint
+ *   GovernmentStatsForm  →  predictEligibility(formData)
+ *                        →  POST /api/predict  (Express backend)
+ *                        →  IBM AutoAI deployment endpoint
  *
- * This module is intentionally a clean interface stub. All functions are
- * exported and typed, ready for real IBM Cloud / Watson ML endpoint wiring
- * when the backend is available.
+ * The frontend NEVER calls IBM AutoAI directly.
+ * All IBM credentials live exclusively in backend/.env.
  *
- * No mock data, no fake responses — callers must handle the pending state.
+ * AutoAI model input fields:
+ *   finyear, lgdstatecode, statename, lgddistrictcode, districtname,
+ *   totalbeneficiaries, totalmale, totalfemale, totaltransgender,
+ *   totalsc, totalst, totalgen, totalobc, totalaadhaar, totalmpbilenumber
  */
 
 import axios from 'axios';
 
-// Base URL is set via environment variable — injected at build time by Vite.
-// Set VITE_API_BASE_URL in your .env file to point to the deployed Flask backend.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+// Base URL — set VITE_API_BASE_URL=http://localhost:5000 in frontend/.env
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000';
 
-// Shared axios instance with sensible defaults for the ML backend.
+// Shared axios instance for the Express backend
 const mlClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30_000, // 30 s — AutoAI scoring can take a moment
+  timeout: 30_000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
 });
 
-// ─── Request interceptor — attach IBM IAM token when available ────────────────
-mlClient.interceptors.request.use((config) => {
-  const iamToken = sessionStorage.getItem('ibm_iam_token');
-  if (iamToken) {
-    config.headers.Authorization = `Bearer ${iamToken}`;
-  }
-  return config;
-});
-
-// ─── Response interceptor — normalise error shape ─────────────────────────────
+// ─── Response interceptor — normalise error messages ─────────────────────────
 mlClient.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -51,90 +44,47 @@ mlClient.interceptors.response.use(
 
 // ─── Payload builder ──────────────────────────────────────────────────────────
 /**
- * Transforms the raw form state object produced by EligibilityForm into the
- * normalised payload structure expected by the IBM AutoAI scoring endpoint.
+ * Transforms the raw form state from GovernmentStatsForm into the flat
+ * payload structure the Express backend (and therefore IBM AutoAI) expects.
+ *
+ * All numeric fields are coerced to Number so the backend validator accepts
+ * them as numerics rather than strings.
  *
  * @param {import('../components/prediction/EligibilityForm').FormState} formData
- * @returns {PredictionPayload}
+ * @returns {AutoAIPayload}
  */
 export function buildPredictionPayload(formData) {
   return {
-    applicant_name:       formData.applicantName.trim(),
-    age:                  Number(formData.age),
-    gender:               formData.gender,
-    marital_status:       formData.maritalStatus,
-    category:             formData.category,
-    occupation:           formData.occupation,
-    state:                formData.state,
-    district:             formData.district.trim(),
-    annual_income:        Number(formData.annualIncome),
-    bpl_status:           formData.bplStatus === 'yes',
-    disability_status:    formData.disabilityStatus === 'yes',
-    widow_status:         formData.widowStatus === 'yes',
-    aadhaar_available:    formData.aadhaarAvailable === 'yes',
-    bank_account_available: formData.bankAccountAvailable === 'yes',
+    finyear:              formData.finyear.trim(),
+    lgdstatecode:         Number(formData.lgdstatecode),
+    statename:            formData.statename.trim(),
+    lgddistrictcode:      Number(formData.lgddistrictcode),
+    districtname:         formData.districtname.trim(),
+    totalbeneficiaries:   Number(formData.totalbeneficiaries),
+    totalmale:            Number(formData.totalmale),
+    totalfemale:          Number(formData.totalfemale),
+    totaltransgender:     Number(formData.totaltransgender),
+    totalsc:              Number(formData.totalsc),
+    totalst:              Number(formData.totalst),
+    totalgen:             Number(formData.totalgen),
+    totalobc:             Number(formData.totalobc),
+    totalaadhaar:         Number(formData.totalaadhaar),
+    totalmpbilenumber:    Number(formData.totalmpbilenumber),
   };
 }
 
 // ─── Primary prediction call ──────────────────────────────────────────────────
 /**
- * Sends applicant data to the IBM AutoAI scoring endpoint and returns
- * the raw eligibility prediction response.
+ * Submits government statistics to the Express backend for IBM AutoAI scoring.
  *
- * The function is intentionally un-implemented — the POST target
- * `/api/predict` will be served by the Flask + Watson ML backend.
+ * Returns the full backend response envelope:
+ *   { success: true, prediction: { scheme, confidence, eligible, raw }, timestamp }
  *
- * @param {import('../components/prediction/EligibilityForm').FormState} formData
- * @returns {Promise<PredictionResponse>}
+ * @param {object} formData - validated raw form state from GovernmentStatsForm
+ * @returns {Promise<{ success: boolean, prediction: PredictionResult, timestamp: string }>}
  */
 export async function predictEligibility(formData) {
   const payload = buildPredictionPayload(formData);
   const response = await mlClient.post('/api/predict', payload);
   return response.data;
 }
-
-// ─── Explanation call (Watsonx.ai) ────────────────────────────────────────────
-/**
- * Requests a plain-language explanation from the Watsonx.ai endpoint for
- * a given prediction result.
- *
- * @param {string} predictionId  — UUID returned by predictEligibility()
- * @returns {Promise<ExplanationResponse>}
- */
-export async function fetchExplanation(predictionId) {
-  const response = await mlClient.get(`/api/explain/${predictionId}`);
-  return response.data;
-}
-
-// ─── Type documentation (JSDoc) ───────────────────────────────────────────────
-/**
- * @typedef {Object} PredictionPayload
- * @property {string}  applicant_name
- * @property {number}  age
- * @property {string}  gender
- * @property {string}  marital_status
- * @property {string}  category
- * @property {string}  occupation
- * @property {string}  state
- * @property {string}  district
- * @property {number}  annual_income
- * @property {boolean} bpl_status
- * @property {boolean} disability_status
- * @property {boolean} widow_status
- * @property {boolean} aadhaar_available
- * @property {boolean} bank_account_available
- */
-
-/**
- * @typedef {Object} PredictionResponse
- * @property {string}  prediction_id      — UUID for this result
- * @property {boolean} eligible           — AutoAI binary classification
- * @property {number}  confidence         — 0–1 confidence score
- * @property {string[]} eligible_schemes  — list of qualifying scheme names
- */
-
-/**
- * @typedef {Object} ExplanationResponse
- * @property {string} explanation   — Watsonx.ai plain-language decision rationale
- * @property {Array<{feature: string, impact: number}>} feature_impacts
- */

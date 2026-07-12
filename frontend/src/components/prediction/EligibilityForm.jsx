@@ -1,112 +1,123 @@
 import { useState, useCallback, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, DollarSign, Users, CheckCircle2 } from 'lucide-react';
+import { CalendarDays, MapPin, Users, Wifi, CheckCircle2 } from 'lucide-react';
 
-import InputField from './InputField';
-import SelectField from './SelectField';
-import SectionCard from './SectionCard';
-import FormActions from './FormActions';
+import InputField   from './InputField';
+import SectionCard  from './SectionCard';
+import FormActions  from './FormActions';
 import ProgressIndicator from './ProgressIndicator';
-
-import {
-  INITIAL_FORM_STATE,
-  GENDER_OPTIONS,
-  MARITAL_STATUS_OPTIONS,
-  CATEGORY_OPTIONS,
-  OCCUPATION_OPTIONS,
-  STATE_OPTIONS,
-  BPL_OPTIONS,
-  YES_NO_OPTIONS,
-} from '../../constants';
-
 import { fadeInUp } from '../../utils';
 
-// ─── Validation rules ─────────────────────────────────────────────────────────
+// ─── Initial form state — mirrors the 15 AutoAI model input fields ────────────
+const INITIAL_FORM_STATE = {
+  // General Information
+  finyear:           '',   // e.g. "2023-24"
+  lgdstatecode:      '',   // numeric state code
+  statename:         '',   // e.g. "Uttar Pradesh"
+  lgddistrictcode:   '',   // numeric district code
+  districtname:      '',   // e.g. "Varanasi"
+  // Population Statistics
+  totalbeneficiaries: '',
+  totalmale:          '',
+  totalfemale:        '',
+  totaltransgender:   '',
+  // Social Category
+  totalsc:  '',
+  totalst:  '',
+  totalgen: '',
+  totalobc: '',
+  // Digital Coverage
+  totalaadhaar:      '',
+  totalmpbilenumber: '',
+};
+
+// ─── Progress step labels ─────────────────────────────────────────────────────
+const FORM_STEPS = ['General', 'Population', 'Category', 'Digital'];
+
+// ─── Validation ───────────────────────────────────────────────────────────────
 
 /**
- * Pure validation function — returns an error messages map.
- * Returns an empty object when the form is fully valid.
+ * Pure validation — returns a map of fieldName → errorMessage.
+ * Empty object = form is valid.
  *
- * @param {typeof INITIAL_FORM_STATE} values
- * @param {boolean} checkAll  — when false, only validates touched fields
+ * @param {typeof INITIAL_FORM_STATE} v
  * @returns {Record<string, string>}
  */
-function validate(values) {
-  const errors = {};
+function validate(v) {
+  const e = {};
 
-  if (!values.applicantName.trim()) {
-    errors.applicantName = 'Applicant name is required.';
-  } else if (values.applicantName.trim().length < 2) {
-    errors.applicantName = 'Name must be at least 2 characters.';
+  // ── General Information ────────────────────────────────────────────────────
+  if (!v.finyear.trim()) {
+    e.finyear = 'Financial year is required (e.g. 2023-24).';
+  } else if (!/^\d{4}-\d{2,4}$/.test(v.finyear.trim())) {
+    e.finyear = 'Format must be YYYY-YY or YYYY-YYYY (e.g. 2023-24).';
   }
 
-  if (!values.age) {
-    errors.age = 'Age is required.';
-  } else {
-    const age = Number(values.age);
-    if (!Number.isInteger(age) || age < 1 || age > 120) {
-      errors.age = 'Enter a valid age between 1 and 120.';
+  if (!v.lgdstatecode) {
+    e.lgdstatecode = 'State code is required.';
+  } else if (isNaN(Number(v.lgdstatecode)) || Number(v.lgdstatecode) < 1) {
+    e.lgdstatecode = 'State code must be a positive number.';
+  }
+
+  if (!v.statename.trim()) {
+    e.statename = 'State name is required.';
+  }
+
+  if (!v.lgddistrictcode) {
+    e.lgddistrictcode = 'District code is required.';
+  } else if (isNaN(Number(v.lgddistrictcode)) || Number(v.lgddistrictcode) < 1) {
+    e.lgddistrictcode = 'District code must be a positive number.';
+  }
+
+  if (!v.districtname.trim()) {
+    e.districtname = 'District name is required.';
+  }
+
+  // ── Population Statistics ──────────────────────────────────────────────────
+  const popFields = [
+    ['totalbeneficiaries', 'Total beneficiaries'],
+    ['totalmale',          'Total male'],
+    ['totalfemale',        'Total female'],
+    ['totaltransgender',   'Total transgender'],
+  ];
+  for (const [field, label] of popFields) {
+    if (v[field] === '' || v[field] === null || v[field] === undefined) {
+      e[field] = `${label} is required.`;
+    } else if (isNaN(Number(v[field])) || Number(v[field]) < 0) {
+      e[field] = `${label} must be a non-negative number.`;
     }
   }
 
-  if (!values.gender) {
-    errors.gender = 'Please select a gender.';
-  }
-
-  if (!values.maritalStatus) {
-    errors.maritalStatus = 'Please select marital status.';
-  }
-
-  if (!values.category) {
-    errors.category = 'Please select a social category.';
-  }
-
-  if (!values.occupation) {
-    errors.occupation = 'Please select an occupation.';
-  }
-
-  if (!values.state) {
-    errors.state = 'Please select a state.';
-  }
-
-  if (!values.district.trim()) {
-    errors.district = 'District / city is required.';
-  }
-
-  if (!values.annualIncome) {
-    errors.annualIncome = 'Annual income is required.';
-  } else {
-    const income = Number(values.annualIncome);
-    if (isNaN(income) || income < 0) {
-      errors.annualIncome = 'Enter a valid income (0 or above).';
+  // ── Social Category ────────────────────────────────────────────────────────
+  const catFields = [
+    ['totalsc',  'Total SC'],
+    ['totalst',  'Total ST'],
+    ['totalgen', 'Total General'],
+    ['totalobc', 'Total OBC'],
+  ];
+  for (const [field, label] of catFields) {
+    if (v[field] === '' || v[field] === null || v[field] === undefined) {
+      e[field] = `${label} is required.`;
+    } else if (isNaN(Number(v[field])) || Number(v[field]) < 0) {
+      e[field] = `${label} must be a non-negative number.`;
     }
   }
 
-  if (!values.bplStatus) {
-    errors.bplStatus = 'Please indicate BPL status.';
+  // ── Digital Coverage ───────────────────────────────────────────────────────
+  if (v.totalaadhaar === '' || v.totalaadhaar === null || v.totalaadhaar === undefined) {
+    e.totalaadhaar = 'Total Aadhaar count is required.';
+  } else if (isNaN(Number(v.totalaadhaar)) || Number(v.totalaadhaar) < 0) {
+    e.totalaadhaar = 'Must be a non-negative number.';
   }
 
-  if (!values.disabilityStatus) {
-    errors.disabilityStatus = 'Please indicate disability status.';
+  if (v.totalmpbilenumber === '' || v.totalmpbilenumber === null || v.totalmpbilenumber === undefined) {
+    e.totalmpbilenumber = 'Total mobile number count is required.';
+  } else if (isNaN(Number(v.totalmpbilenumber)) || Number(v.totalmpbilenumber) < 0) {
+    e.totalmpbilenumber = 'Must be a non-negative number.';
   }
 
-  if (!values.widowStatus) {
-    errors.widowStatus = 'Please indicate widow/widower status.';
-  }
-
-  if (!values.aadhaarAvailable) {
-    errors.aadhaarAvailable = 'Please indicate Aadhaar availability.';
-  }
-
-  if (!values.bankAccountAvailable) {
-    errors.bankAccountAvailable = 'Please indicate bank account availability.';
-  }
-
-  return errors;
+  return e;
 }
-
-// ─── Section step labels for the progress indicator ──────────────────────────
-const FORM_STEPS = ['Personal', 'Location', 'Economic', 'Social'];
 
 // ─── Success overlay ──────────────────────────────────────────────────────────
 function SubmissionSuccess({ onReset }) {
@@ -127,17 +138,13 @@ function SubmissionSuccess({ onReset }) {
       >
         <CheckCircle2 size={40} className="text-[#42be65]" aria-hidden="true" />
       </motion.div>
-
       <div className="flex flex-col gap-2">
-        <h3 className="text-xl font-bold text-[#f4f4f4]">
-          Prediction Request Submitted
-        </h3>
+        <h3 className="text-xl font-bold text-[#f4f4f4]">Prediction Submitted</h3>
         <p className="text-sm text-[#8d8d8d] max-w-sm leading-relaxed">
-          The form data has been prepared and passed to the IBM AutoAI prediction
-          service. Results will appear on the Report page once the backend is connected.
+          The district statistics have been forwarded to IBM AutoAI. Your result
+          is loading on the next page.
         </p>
       </div>
-
       <motion.button
         type="button"
         onClick={onReset}
@@ -145,62 +152,50 @@ function SubmissionSuccess({ onReset }) {
         whileTap={{ scale: 0.97 }}
         className="h-10 px-6 rounded-xl glass-card text-sm font-semibold text-[#4589ff] hover:border-[#4589ff]/40 transition-colors duration-150"
       >
-        Submit Another Application
+        Submit Another
       </motion.button>
     </motion.div>
   );
 }
 
 // ─── EligibilityForm ──────────────────────────────────────────────────────────
-
 /**
- * EligibilityForm — the full multi-section eligibility form.
+ * Government district statistics form aligned to the IBM AutoAI model.
  *
  * Props:
- *   onSubmit  (formData: typeof INITIAL_FORM_STATE) => Promise<void>
- *             Called with validated form data. The parent page
- *             (EligibilityPage) owns loading / error state and calls
- *             predictEligibility() from mlService.js.
+ *   onSubmit (formData) => Promise<void>
+ *     Called with validated raw form values. EligibilityPage owns the
+ *     API call and navigation; this component owns only form state.
  */
 export default function EligibilityForm({ onSubmit }) {
   const formId = useId();
 
-  // Controlled form values
-  const [values, setValues] = useState({ ...INITIAL_FORM_STATE });
-
-  // Track which fields the user has interacted with (for deferred validation)
-  const [touched, setTouched] = useState({});
-
-  // Submission lifecycle
+  const [values,      setValues]      = useState({ ...INITIAL_FORM_STATE });
+  const [touched,     setTouched]     = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted,   setSubmitted]   = useState(false);
 
-  // Compute active errors only for touched fields (while pristine)
-  const allErrors = validate(values);
+  const allErrors     = validate(values);
   const visibleErrors = Object.fromEntries(
-    Object.entries(allErrors).filter(([key]) => touched[key])
+    Object.entries(allErrors).filter(([k]) => touched[k])
   );
-  const totalErrorCount = Object.keys(allErrors).length;
 
-  // Derive the currently-focused section from touched fields
+  // Track which section the user is currently in for the progress indicator
   const sectionIndex = (() => {
-    if (touched.disabilityStatus || touched.widowStatus) return 3;
-    if (touched.annualIncome || touched.bplStatus)        return 2;
-    if (touched.state || touched.district)                return 1;
+    if (touched.totalaadhaar   || touched.totalmpbilenumber) return 3;
+    if (touched.totalsc        || touched.totalst)           return 2;
+    if (touched.totalbeneficiaries || touched.totalmale)     return 1;
     return 0;
   })();
 
-  // ── Field change handler ─────────────────────────────────────────────────
   const handleChange = useCallback((field) => (e) => {
     setValues((prev) => ({ ...prev, [field]: e.target.value }));
   }, []);
 
-  // ── Blur handler — marks a field as touched ──────────────────────────────
   const handleBlur = useCallback((field) => () => {
     setTouched((prev) => ({ ...prev, [field]: true }));
   }, []);
 
-  // ── Reset ─────────────────────────────────────────────────────────────────
   const handleReset = useCallback(() => {
     setValues({ ...INITIAL_FORM_STATE });
     setTouched({});
@@ -208,17 +203,10 @@ export default function EligibilityForm({ onSubmit }) {
     setSubmitted(false);
   }, []);
 
-  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async (e) => {
     if (e?.preventDefault) e.preventDefault();
-
-    // Mark all fields touched so errors show
-    const allTouched = Object.fromEntries(
-      Object.keys(INITIAL_FORM_STATE).map((k) => [k, true])
-    );
-    setTouched(allTouched);
-
-    // Abort if there are validation errors
+    // Mark all fields touched to surface any remaining errors
+    setTouched(Object.fromEntries(Object.keys(INITIAL_FORM_STATE).map((k) => [k, true])));
     if (Object.keys(validate(values)).length > 0) return;
 
     setIsSubmitting(true);
@@ -230,16 +218,26 @@ export default function EligibilityForm({ onSubmit }) {
     }
   }, [values, onSubmit]);
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ── Shared field props builder ──────────────────────────────────────────────
+  const field = (name, overrides = {}) => ({
+    id:       `${formId}-${name}`,
+    value:    values[name],
+    onChange: handleChange(name),
+    onBlur:   handleBlur(name),
+    error:    visibleErrors[name],
+    required: true,
+    ...overrides,
+  });
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <form
       id={`${formId}-form`}
       onSubmit={handleSubmit}
       noValidate
-      aria-label="Welfare eligibility application form"
+      aria-label="Government district eligibility statistics form"
       className="flex flex-col gap-6"
     >
-      {/* Progress indicator */}
       <ProgressIndicator steps={FORM_STEPS} currentStep={sectionIndex} />
 
       <AnimatePresence mode="wait">
@@ -253,210 +251,138 @@ export default function EligibilityForm({ onSubmit }) {
             exit={{ opacity: 0 }}
             className="flex flex-col gap-5"
           >
-            {/* ── Section 1: Personal Information ─────────────────── */}
-            <SectionCard
-              title="Personal Information"
-              icon={<User size={14} />}
-            >
+            {/* ── Section 1: General Information ──────────────────────── */}
+            <SectionCard title="General Information" icon={<CalendarDays size={14} />}>
               <InputField
-                id={`${formId}-name`}
-                label="Applicant Name"
-                placeholder="Full name as per Aadhaar"
-                value={values.applicantName}
-                onChange={handleChange('applicantName')}
-                onBlur={handleBlur('applicantName')}
-                error={visibleErrors.applicantName}
-                required
+                {...field('finyear')}
+                label="Financial Year"
+                placeholder="e.g. 2023-24"
+                hint="Format: YYYY-YY (e.g. 2023-24)"
               />
-
               <InputField
-                id={`${formId}-age`}
-                label="Age"
+                {...field('lgdstatecode')}
+                label="LGD State Code"
                 type="number"
-                placeholder="e.g. 35"
-                value={values.age}
-                onChange={handleChange('age')}
-                onBlur={handleBlur('age')}
-                error={visibleErrors.age}
-                hint="Must be between 1 and 120"
-                required
+                placeholder="e.g. 9"
+                hint="Local Government Directory numeric state code"
                 min={1}
-                max={120}
               />
-
-              <SelectField
-                id={`${formId}-gender`}
-                label="Gender"
-                placeholder="Select gender"
-                options={GENDER_OPTIONS}
-                value={values.gender}
-                onChange={handleChange('gender')}
-                onBlur={handleBlur('gender')}
-                error={visibleErrors.gender}
-                required
-              />
-
-              <SelectField
-                id={`${formId}-maritalStatus`}
-                label="Marital Status"
-                placeholder="Select marital status"
-                options={MARITAL_STATUS_OPTIONS}
-                value={values.maritalStatus}
-                onChange={handleChange('maritalStatus')}
-                onBlur={handleBlur('maritalStatus')}
-                error={visibleErrors.maritalStatus}
-                required
-              />
-
-              <SelectField
-                id={`${formId}-category`}
-                label="Social Category"
-                placeholder="Select category"
-                options={CATEGORY_OPTIONS}
-                value={values.category}
-                onChange={handleChange('category')}
-                onBlur={handleBlur('category')}
-                error={visibleErrors.category}
-                required
-              />
-
-              <SelectField
-                id={`${formId}-occupation`}
-                label="Occupation"
-                placeholder="Select occupation"
-                options={OCCUPATION_OPTIONS}
-                value={values.occupation}
-                onChange={handleChange('occupation')}
-                onBlur={handleBlur('occupation')}
-                error={visibleErrors.occupation}
-                required
-              />
-            </SectionCard>
-
-            {/* ── Section 2: Location ──────────────────────────────── */}
-            <SectionCard
-              title="Location"
-              icon={<MapPin size={14} />}
-            >
-              <SelectField
-                id={`${formId}-state`}
-                label="State"
-                placeholder="Select state"
-                options={STATE_OPTIONS}
-                value={values.state}
-                onChange={handleChange('state')}
-                onBlur={handleBlur('state')}
-                error={visibleErrors.state}
-                required
-              />
-
               <InputField
-                id={`${formId}-district`}
-                label="District / City"
-                placeholder="e.g. Varanasi"
-                value={values.district}
-                onChange={handleChange('district')}
-                onBlur={handleBlur('district')}
-                error={visibleErrors.district}
-                required
+                {...field('statename')}
+                label="State Name"
+                placeholder="e.g. Uttar Pradesh"
               />
-            </SectionCard>
-
-            {/* ── Section 3: Economic Information ─────────────────── */}
-            <SectionCard
-              title="Economic Information"
-              icon={<DollarSign size={14} />}
-            >
               <InputField
-                id={`${formId}-annualIncome`}
-                label="Annual Income (₹)"
+                {...field('lgddistrictcode')}
+                label="LGD District Code"
                 type="number"
-                placeholder="e.g. 120000"
-                value={values.annualIncome}
-                onChange={handleChange('annualIncome')}
-                onBlur={handleBlur('annualIncome')}
-                error={visibleErrors.annualIncome}
-                hint="Enter total household income in Indian Rupees"
-                required
+                placeholder="e.g. 197"
+                hint="Local Government Directory numeric district code"
+                min={1}
+              />
+              <InputField
+                {...field('districtname')}
+                label="District Name"
+                placeholder="e.g. Varanasi"
+              />
+            </SectionCard>
+
+            {/* ── Section 2: Population Statistics ────────────────────── */}
+            <SectionCard title="Population Statistics" icon={<Users size={14} />}>
+              <InputField
+                {...field('totalbeneficiaries')}
+                label="Total Beneficiaries"
+                type="number"
+                placeholder="e.g. 45230"
                 min={0}
               />
-
-              <SelectField
-                id={`${formId}-bplStatus`}
-                label="Below Poverty Line (BPL) Status"
-                placeholder="Select BPL status"
-                options={BPL_OPTIONS}
-                value={values.bplStatus}
-                onChange={handleChange('bplStatus')}
-                onBlur={handleBlur('bplStatus')}
-                error={visibleErrors.bplStatus}
-                required
+              <InputField
+                {...field('totalmale')}
+                label="Total Male"
+                type="number"
+                placeholder="e.g. 22100"
+                min={0}
+              />
+              <InputField
+                {...field('totalfemale')}
+                label="Total Female"
+                type="number"
+                placeholder="e.g. 23000"
+                min={0}
+              />
+              <InputField
+                {...field('totaltransgender')}
+                label="Total Transgender"
+                type="number"
+                placeholder="e.g. 130"
+                min={0}
               />
             </SectionCard>
 
-            {/* ── Section 4: Social Information ───────────────────── */}
-            <SectionCard
-              title="Social Information"
-              icon={<Users size={14} />}
-            >
-              <SelectField
-                id={`${formId}-disabilityStatus`}
-                label="Person with Disability (PwD)"
-                placeholder="Select option"
-                options={YES_NO_OPTIONS}
-                value={values.disabilityStatus}
-                onChange={handleChange('disabilityStatus')}
-                onBlur={handleBlur('disabilityStatus')}
-                error={visibleErrors.disabilityStatus}
-                required
+            {/* ── Section 3: Social Category ───────────────────────────── */}
+            <SectionCard title="Social Category" icon={<MapPin size={14} />}>
+              <InputField
+                {...field('totalsc')}
+                label="Total SC (Scheduled Caste)"
+                type="number"
+                placeholder="e.g. 8400"
+                min={0}
               />
-
-              <SelectField
-                id={`${formId}-widowStatus`}
-                label="Widow / Widower"
-                placeholder="Select option"
-                options={YES_NO_OPTIONS}
-                value={values.widowStatus}
-                onChange={handleChange('widowStatus')}
-                onBlur={handleBlur('widowStatus')}
-                error={visibleErrors.widowStatus}
-                required
+              <InputField
+                {...field('totalst')}
+                label="Total ST (Scheduled Tribe)"
+                type="number"
+                placeholder="e.g. 3200"
+                min={0}
               />
-
-              <SelectField
-                id={`${formId}-aadhaarAvailable`}
-                label="Aadhaar Card Available"
-                placeholder="Select option"
-                options={YES_NO_OPTIONS}
-                value={values.aadhaarAvailable}
-                onChange={handleChange('aadhaarAvailable')}
-                onBlur={handleBlur('aadhaarAvailable')}
-                error={visibleErrors.aadhaarAvailable}
-                required
+              <InputField
+                {...field('totalgen')}
+                label="Total General"
+                type="number"
+                placeholder="e.g. 22000"
+                min={0}
               />
-
-              <SelectField
-                id={`${formId}-bankAccountAvailable`}
-                label="Bank Account Available"
-                placeholder="Select option"
-                options={YES_NO_OPTIONS}
-                value={values.bankAccountAvailable}
-                onChange={handleChange('bankAccountAvailable')}
-                onBlur={handleBlur('bankAccountAvailable')}
-                error={visibleErrors.bankAccountAvailable}
-                hint="Required for DBT (Direct Benefit Transfer)"
-                required
+              <InputField
+                {...field('totalobc')}
+                label="Total OBC (Other Backward Class)"
+                type="number"
+                placeholder="e.g. 11630"
+                min={0}
               />
             </SectionCard>
 
-            {/* ── Form actions ──────────────────────────────────────── */}
+            {/* ── Section 4: Digital Coverage ──────────────────────────── */}
+            <SectionCard title="Digital Coverage" icon={<Wifi size={14} />}>
+              <InputField
+                {...field('totalaadhaar')}
+                label="Total Aadhaar Linked"
+                type="number"
+                placeholder="e.g. 41000"
+                hint="Number of beneficiaries with Aadhaar linkage"
+                min={0}
+              />
+              <InputField
+                {...field('totalmpbilenumber')}
+                label="Total Mobile Numbers"
+                type="number"
+                placeholder="e.g. 38500"
+                hint="Number of beneficiaries with registered mobile"
+                min={0}
+              />
+            </SectionCard>
+
+            {/* ── Form actions ─────────────────────────────────────────── */}
             <motion.div variants={fadeInUp} initial="hidden" animate="visible">
               <FormActions
                 onReset={handleReset}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
                 isDisabled={false}
-                errorCount={Object.keys(touched).length > 0 ? Object.keys(visibleErrors).length : 0}
+                errorCount={
+                  Object.keys(touched).length > 0
+                    ? Object.keys(visibleErrors).length
+                    : 0
+                }
               />
             </motion.div>
           </motion.div>

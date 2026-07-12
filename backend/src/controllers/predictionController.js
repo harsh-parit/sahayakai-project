@@ -5,92 +5,129 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Handles POST /api/predict.
  *
- * Responsibilities:
- *   1. Validate the incoming request body — fail fast with clear errors.
- *   2. Delegate to mlService.scoreWithAutoAI().
- *   3. Return a clean, consistent JSON response.
- *   4. Pass unexpected errors to the global error handler via next(err).
+ * Request → Validate → scoreWithAutoAI() → Respond
+ *
+ * Success response shape:
+ *   {
+ *     "success": true,
+ *     "prediction": {
+ *       "schemeCode": "IGNOAPS",
+ *       "schemeName": "Indira Gandhi National Old Age Pension Scheme",
+ *       "confidence": "92.4%",
+ *       "raw":        { …watson ml raw response… }
+ *     },
+ *     "timestamp": "ISO-8601"
+ *   }
+ *
+ * Failure response shape:
+ *   HTTP 400 — validation error
+ *   {
+ *     "success": false,
+ *     "message": "Request body validation failed.",
+ *     "error":   "VALIDATION_ERROR",
+ *     "details": { field: "error message", … },
+ *     "timestamp": "ISO-8601"
+ *   }
+ *
+ *   HTTP 500 / 502 / 503 / 504 — IBM service error
+ *   {
+ *     "success": false,
+ *     "message": "Human-readable description.",
+ *     "error":   "IBM_AUTH_ERROR | IBM_TIMEOUT | IBM_UNREACHABLE | …",
+ *     "timestamp": "ISO-8601"
+ *   }
  */
 
 const { scoreWithAutoAI }  = require('../services/mlService');
-const { success, validationError, serviceUnavailable } = require('../utils/response');
+const { success, validationError, error: sendError } = require('../utils/response');
 const logger               = require('../utils/logger');
 
-// ─── Validation schema ────────────────────────────────────────────────────────
+// ─── Validation rules ─────────────────────────────────────────────────────────
 
 /**
- * Required string fields — must be non-empty strings.
- * @type {string[]}
+ * String fields sent by the frontend that must be present and non-empty.
+ * These match the IBM AutoAI model's expected input schema.
  */
 const REQUIRED_STRING_FIELDS = [
-  'applicant_name',
-  'gender',
-  'marital_status',
-  'category',
-  'occupation',
-  'state',
-  'district',
+  'finyear',
+  'statename',
+  'districtname',
 ];
 
 /**
- * Required boolean fields — must be true or false (not undefined/null).
- * @type {string[]}
+ * Numeric fields that must be present and be non-negative finite numbers.
+ * Codes (lgdstatecode, lgddistrictcode) must additionally be positive integers.
  */
-const REQUIRED_BOOLEAN_FIELDS = [
-  'bpl_status',
-  'disability_status',
-  'widow_status',
-  'aadhaar_available',
-  'bank_account_available',
+const REQUIRED_NUMERIC_FIELDS = [
+  'lgdstatecode',
+  'lgddistrictcode',
+  'totalbeneficiaries',
+  'totalmale',
+  'totalfemale',
+  'totaltransgender',
+  'totalsc',
+  'totalst',
+  'totalgen',
+  'totalobc',
+  'totalaadhaar',
+  'totalmpbilenumber',
 ];
 
 /**
- * Validates the request body for a prediction request.
- * Returns an object of field → error message; empty if valid.
+ * Validates every field of the AutoAI prediction request body.
  *
- * @param {object} body
- * @returns {Record<string, string>}
+ * Designed to be a pure function — no side effects, easy to unit-test.
+ *
+ * @param {object} body - raw req.body
+ * @returns {Record<string, string>} Map of { fieldName: errorMessage }.
+ *                                   Empty object means the body is valid.
  */
 function validatePredictionBody(body) {
   const errors = {};
 
-  // ── age ───────────────────────────────────────────────────────────────────
-  if (body.age === undefined || body.age === null || body.age === '') {
-    errors.age = 'age is required.';
-  } else {
-    const age = Number(body.age);
-    if (!Number.isFinite(age) || !Number.isInteger(age) || age < 1 || age > 120) {
-      errors.age = 'age must be an integer between 1 and 120.';
-    }
-  }
-
-  // ── annual_income ─────────────────────────────────────────────────────────
-  if (body.annual_income === undefined || body.annual_income === null || body.annual_income === '') {
-    errors.annual_income = 'annual_income is required.';
-  } else {
-    const income = Number(body.annual_income);
-    if (!Number.isFinite(income) || income < 0) {
-      errors.annual_income = 'annual_income must be a non-negative number.';
-    }
+  // Guard: body must be a plain object
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    errors._body = 'Request body must be a JSON object.';
+    return errors;
   }
 
   // ── Required string fields ────────────────────────────────────────────────
   for (const field of REQUIRED_STRING_FIELDS) {
-    if (!body[field] || typeof body[field] !== 'string' || body[field].trim() === '') {
+    const value = body[field];
+    if (!value || typeof value !== 'string' || value.trim() === '') {
       errors[field] = `${field} is required and must be a non-empty string.`;
     }
   }
 
-  // ── Required boolean fields ───────────────────────────────────────────────
-  for (const field of REQUIRED_BOOLEAN_FIELDS) {
-    if (body[field] === undefined || body[field] === null) {
-      errors[field] = `${field} is required and must be true or false.`;
-    } else if (typeof body[field] !== 'boolean') {
-      errors[field] = `${field} must be a boolean (true or false).`;
+  // ── Required numeric fields ───────────────────────────────────────────────
+  for (const field of REQUIRED_NUMERIC_FIELDS) {
+    const value = body[field];
+    if (value === undefined || value === null || value === '') {
+      errors[field] = `${field} is required.`;
+    } else {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 0) {
+        errors[field] = `${field} must be a non-negative number.`;
+      }
     }
   }
 
   return errors;
+}
+
+// ─── IBM error → HTTP status mapper ──────────────────────────────────────────
+
+/**
+ * Maps the classified IBM error codes produced by mlService onto Express
+ * HTTP status codes and response error codes.
+ *
+ * @param {Error & { statusCode?: number, code?: string, isIBMError?: boolean }} err
+ * @returns {{ httpStatus: number, errorCode: string }}
+ */
+function mapIBMErrorToResponse(err) {
+  const httpStatus = err.statusCode ?? 500;
+  const errorCode  = err.code ?? 'IBM_SERVICE_ERROR';
+  return { httpStatus, errorCode };
 }
 
 // ─── Controller ───────────────────────────────────────────────────────────────
@@ -98,21 +135,38 @@ function validatePredictionBody(body) {
 /**
  * predictEligibility — POST /api/predict
  *
- * @param {import('express').Request}    req
- * @param {import('express').Response}   res
+ * All IBM-related errors are caught here and returned as structured JSON
+ * with the appropriate HTTP status code so the frontend can surface
+ * meaningful error messages.
+ *
+ * Unexpected (non-IBM) errors are passed to the global error handler via
+ * next(err) so they appear in logs with a full stack trace.
+ *
+ * @param {import('express').Request}      req
+ * @param {import('express').Response}     res
  * @param {import('express').NextFunction} next
  */
 const predictEligibility = async (req, res, next) => {
   const requestId = req.requestId ?? 'unknown';
 
+  // ── 1. Log incoming request ────────────────────────────────────────────────
+  logger.info('POST /api/predict — incoming prediction request.', {
+    requestId,
+    ip:        req.ip,
+    bodyKeys:  Object.keys(req.body ?? {}).join(', '),
+  });
+
   try {
-    // ── 1. Validate ───────────────────────────────────────────────────────
+    // ── 2. Validate request body ───────────────────────────────────────────
     const validationErrors = validatePredictionBody(req.body);
+
     if (Object.keys(validationErrors).length > 0) {
-      logger.warn('Prediction request rejected — validation errors.', {
+      logger.warn('Prediction request rejected — validation failed.', {
         requestId,
-        errors: validationErrors,
+        errorCount: Object.keys(validationErrors).length,
+        errors:     validationErrors,
       });
+
       return validationError(
         res,
         'Request body validation failed. Please correct the highlighted fields.',
@@ -120,37 +174,65 @@ const predictEligibility = async (req, res, next) => {
       );
     }
 
-    logger.info('Prediction request accepted — forwarding to IBM AutoAI.', {
+    logger.info('Validation passed — forwarding to IBM AutoAI.', {
       requestId,
-      applicant: req.body.applicant_name,
-      state:     req.body.state,
+      district: req.body.districtname,
+      state:    req.body.statename,
+      finyear:  req.body.finyear,
     });
 
-    // ── 2. Score ──────────────────────────────────────────────────────────
+    // ── 3. Call IBM AutoAI via mlService ───────────────────────────────────
     const prediction = await scoreWithAutoAI(req.body);
 
-    logger.info('Prediction completed.', {
+    // ── 4. Log success ─────────────────────────────────────────────────────
+    logger.info('Prediction completed successfully.', {
       requestId,
-      eligible:   prediction.eligible,
+      schemeCode: prediction.schemeCode,
+      schemeName: prediction.schemeName,
       confidence: prediction.confidence,
     });
 
-    // ── 3. Respond ────────────────────────────────────────────────────────
+    // ── 5. Return structured success response ──────────────────────────────
+    // Response shape: { success, prediction: { scheme, confidence, eligible, raw }, timestamp }
     return success(res, prediction, 'prediction');
 
   } catch (err) {
-    // Differentiate IBM service errors from unexpected errors
-    const isServiceError = err.message.includes('IBM');
+    // ── IBM service errors (classified by mlService) ───────────────────────
+    if (err.isIBMError) {
+      const { httpStatus, errorCode } = mapIBMErrorToResponse(err);
 
-    if (isServiceError) {
-      logger.error('IBM AutoAI service error during prediction.', {
+      logger.error('IBM AutoAI service error.', {
+        requestId,
+        errorCode,
+        httpStatus,
+        message: err.message,
+      });
+
+      return sendError(res, err.message, errorCode, httpStatus);
+    }
+
+    // ── Parse error from IBM response body ────────────────────────────────
+    if (err.message.startsWith('IBM AutoAI returned')) {
+      logger.error('IBM AutoAI response parse error.', {
         requestId,
         message: err.message,
       });
-      return serviceUnavailable(res, err.message);
+
+      return sendError(
+        res,
+        'IBM AutoAI returned an unexpected response. Please try again.',
+        'IBM_PARSE_ERROR',
+        500
+      );
     }
 
-    // Unexpected — delegate to the global error handler
+    // ── Unexpected error — delegate to global error handler ───────────────
+    logger.error('Unexpected error during prediction.', {
+      requestId,
+      message: err.message,
+      stack:   err.stack,
+    });
+
     next(err);
   }
 };
