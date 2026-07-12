@@ -1,1 +1,133 @@
+/* SahayakAI Global Styles */
 @import "tailwindcss";
+
+@theme {
+  --color-ibm-blue-50: #edf5ff;
+  --color-ibm-blue-100: #d0e2ff;
+  --color-ibm-blue-200: #a6c8ff;
+  --color-ibm-blue-300: #78a9ff;
+  --color-ibm-blue-400: #4589ff;
+  --color-ibm-blue-500: #0f62fe;
+  --color-ibm-blue-600: #0043ce;
+  --color-ibm-blue-700: #002d9c;
+  --color-ibm-blue-800: #001d6c;
+  --color-ibm-blue-900: #001141;
+
+  --color-ibm-purple-50: #f6f2ff;
+  --color-ibm-purple-100: #e8daff;
+  --color-ibm-purple-200: #d4bbff;
+  --color-ibm-purple-300: #be95ff;
+  --color-ibm-purple-400: #a56eff;
+  --color-ibm-purple-500: #8a3ffc;
+  --color-ibm-purple-600: #6929c4;
+  --color-ibm-purple-700: #491d8b;
+  --color-ibm-purple-800: #31135e;
+  --color-ibm-purple-900: #1c0f30;
+
+  --color-ibm-cyan-400: #33b1ff;
+  --color-ibm-cyan-500: #1192e8;
+  --color-ibm-cyan-600: #0072c3;
+
+  --color-ibm-green-400: #42be65;
+  --color-ibm-green-500: #24a148;
+
+  --color-ibm-gray-10: #f4f4f4;
+  --color-ibm-gray-20: #e0e0e0;
+  --color-ibm-gray-30: #c6c6c6;
+  --color-ibm-gray-50: #8d8d8d;
+  --color-ibm-gray-60: #6f6f6f;
+  --color-ibm-gray-80: #393939;
+  --color-ibm-gray-90: #262626;
+  --color-ibm-gray-100: #161616;
+
+  --font-ibm: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+/* Base reset for SahayakAI — overrides the Vite scaffold defaults */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background-color: #0a0a0f;
+  color: #f4f4f4;
+  font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Override Vite scaffold #root constraint */
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  text-align: left;
+  border-inline: none;
+  min-height: 100svh;
+  display: block;
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #161616;
+}
+::-webkit-scrollbar-thumb {
+  background: #4589ff;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0f62fe;
+}
+
+/* Selection highlight */
+::selection {
+  background: rgba(15, 98, 254, 0.3);
+  color: #f4f4f4;
+}
+
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, #4589ff 0%, #be95ff 50%, #33b1ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass card utility */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* IBM grid line accent */
+.ibm-grid-bg {
+  background-image:
+    linear-gradient(rgba(69, 137, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(69, 137, 255, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Glow effects */
+.glow-blue {
+  box-shadow: 0 0 30px rgba(15, 98, 254, 0.25), 0 0 60px rgba(15, 98, 254, 0.1);
+}
+
+.glow-purple {
+  box-shadow: 0 0 30px rgba(138, 63, 252, 0.25), 0 0 60px rgba(138, 63, 252, 0.1);
+}
+
+/* Focus ring for accessibility */
+:focus-visible {
+  outline: 2px solid #4589ff;
+  outline-offset: 2px;
+}
