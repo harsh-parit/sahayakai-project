@@ -18,7 +18,7 @@
 import axios from 'axios';
 
 // Base URL — set VITE_API_BASE_URL=http://localhost:5000 in frontend/.env
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Shared axios instance for the Express backend
 const mlClient = axios.create({
