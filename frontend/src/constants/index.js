@@ -186,3 +186,147 @@ export const FUTURE_SCOPE = [
   'Federated learning for privacy-preserving model training',
   'Real-time push notifications via IBM Event Streams',
 ];
+
+// ─── Eligibility Form — dropdown options ──────────────────────────────────────
+
+export const GENDER_OPTIONS = [
+  { value: 'male',   label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'other',  label: 'Other / Prefer not to say' },
+];
+
+export const MARITAL_STATUS_OPTIONS = [
+  { value: 'single',   label: 'Single / Unmarried' },
+  { value: 'married',  label: 'Married' },
+  { value: 'widowed',  label: 'Widowed' },
+  { value: 'divorced', label: 'Divorced / Separated' },
+];
+
+export const CATEGORY_OPTIONS = [
+  { value: 'general', label: 'General' },
+  { value: 'obc',     label: 'OBC (Other Backward Class)' },
+  { value: 'sc',      label: 'SC (Scheduled Caste)' },
+  { value: 'st',      label: 'ST (Scheduled Tribe)' },
+  { value: 'ews',     label: 'EWS (Economically Weaker Section)' },
+];
+
+export const OCCUPATION_OPTIONS = [
+  { value: 'unemployed',        label: 'Unemployed' },
+  { value: 'daily_wage',        label: 'Daily Wage Worker' },
+  { value: 'self_employed',     label: 'Self-Employed' },
+  { value: 'farmer',            label: 'Farmer / Agricultural Worker' },
+  { value: 'private_sector',    label: 'Private Sector Employee' },
+  { value: 'government',        label: 'Government Employee' },
+  { value: 'retired',           label: 'Retired' },
+  { value: 'student',           label: 'Student' },
+  { value: 'homemaker',         label: 'Homemaker' },
+];
+
+export const STATE_OPTIONS = [
+  { value: 'andhra_pradesh',    label: 'Andhra Pradesh' },
+  { value: 'assam',             label: 'Assam' },
+  { value: 'bihar',             label: 'Bihar' },
+  { value: 'chhattisgarh',      label: 'Chhattisgarh' },
+  { value: 'gujarat',           label: 'Gujarat' },
+  { value: 'haryana',           label: 'Haryana' },
+  { value: 'himachal_pradesh',  label: 'Himachal Pradesh' },
+  { value: 'jharkhand',         label: 'Jharkhand' },
+  { value: 'karnataka',         label: 'Karnataka' },
+  { value: 'kerala',            label: 'Kerala' },
+  { value: 'madhya_pradesh',    label: 'Madhya Pradesh' },
+  { value: 'maharashtra',       label: 'Maharashtra' },
+  { value: 'manipur',           label: 'Manipur' },
+  { value: 'meghalaya',         label: 'Meghalaya' },
+  { value: 'odisha',            label: 'Odisha' },
+  { value: 'punjab',            label: 'Punjab' },
+  { value: 'rajasthan',         label: 'Rajasthan' },
+  { value: 'tamil_nadu',        label: 'Tamil Nadu' },
+  { value: 'telangana',         label: 'Telangana' },
+  { value: 'uttar_pradesh',     label: 'Uttar Pradesh' },
+  { value: 'uttarakhand',       label: 'Uttarakhand' },
+  { value: 'west_bengal',       label: 'West Bengal' },
+  { value: 'delhi',             label: 'Delhi (NCT)' },
+];
+
+export const BPL_OPTIONS = [
+  { value: 'yes', label: 'Yes — holds BPL card' },
+  { value: 'no',  label: 'No — above poverty line' },
+];
+
+export const YES_NO_OPTIONS = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no',  label: 'No' },
+];
+
+// Initial empty form state — single source of truth for EligibilityForm
+export const INITIAL_FORM_STATE = {
+  // Personal
+  applicantName: '',
+  age: '',
+  gender: '',
+  maritalStatus: '',
+  category: '',
+  occupation: '',
+  // Location
+  state: '',
+  district: '',
+  // Economic
+  annualIncome: '',
+  bplStatus: '',
+  // Social
+  disabilityStatus: '',
+  widowStatus: '',
+  aadhaarAvailable: '',
+  bankAccountAvailable: '',
+};
+
+// Supported welfare schemes displayed in the right panel
+export const SUPPORTED_SCHEMES = [
+  { name: 'PM Kisan Samman Nidhi',  domain: 'Agriculture' },
+  { name: 'PMAY – Gramin',          domain: 'Housing' },
+  { name: 'PMEGP',                  domain: 'Employment' },
+  { name: 'Antyodaya Anna Yojana',  domain: 'Food Security' },
+  { name: 'NSAP – IGNOAPS',         domain: 'Social Security' },
+  { name: 'Ayushman Bharat – PMJAY',domain: 'Healthcare' },
+  { name: 'Pradhan Mantri Awas',    domain: 'Urban Housing' },
+  { name: 'Ujjwala Yojana',         domain: 'Energy' },
+];
+
+// Prediction pipeline steps shown in the right panel
+export const PREDICTION_PIPELINE = [
+  {
+    id: 'autoai',
+    label: 'IBM AutoAI',
+    detail: 'Automated ML pipeline selects the best model from 20+ algorithms.',
+    color: '#0f62fe',
+  },
+  {
+    id: 'watsonx',
+    label: 'Watsonx.ai',
+    detail: 'Generative AI produces a plain-language decision explanation.',
+    color: '#8a3ffc',
+  },
+  {
+    id: 'orchestrate',
+    label: 'IBM Orchestrate',
+    detail: 'Approved cases are routed to the appropriate department workflow.',
+    color: '#1192e8',
+  },
+  {
+    id: 'confidence',
+    label: 'Confidence Score',
+    detail: 'Model certainty rating (0–100) accompanies every eligibility result.',
+    color: '#42be65',
+  },
+];
+
+// Required documents advisory shown in the right panel
+export const REQUIRED_DOCUMENTS = [
+  'Aadhaar Card / UID',
+  'Income Certificate (issued by SDM / Tehsildar)',
+  'Caste Certificate (for SC / ST / OBC applicants)',
+  'BPL Ration Card (if applicable)',
+  'Bank Passbook (first page)',
+  'Disability Certificate (if applicable)',
+  'Land / Property records (if applicable)',
+];
