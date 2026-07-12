@@ -1,0 +1,113 @@
+Folder PATH listing for volume New Volume
+Volume serial number is 0000002D 2AC2:B12C
+D:.
+¦   .gitignore
+¦   LICENSE
+¦   README.md
+¦   structure.txt
+¦   
++---.github
+¦   +---workflows
++---assets
+¦   +---banners
+¦   +---logo
+¦   +---screenshots
++---docs
+¦       api.md
+¦       architecture.md
+¦       deployment.md
+¦       presentation.md
+¦       user-guide.md
+¦       
++---frontend
+    ¦   .env
+    ¦   .env.example
+    ¦   eslint.config.js
+    ¦   package.json
+    ¦   README.md
+    ¦   vite.config.js
+    ¦   
+    +---public
+    ¦       manifest.json
+    ¦       robots.txt
+    ¦       
+    +---src
+        ¦   App.jsx
+        ¦   main.jsx
+        ¦   
+        +---assets
+        ¦   +---animations
+        ¦   +---icons
+        ¦   +---images
+        ¦   +---logos
+        +---components
+        ¦   +---assistant
+        ¦   ¦       ChatInput.jsx
+        ¦   ¦       ChatWindow.jsx
+        ¦   ¦       Message.jsx
+        ¦   ¦       
+        ¦   +---common
+        ¦   ¦       Button.jsx
+        ¦   ¦       Card.jsx
+        ¦   ¦       Loader.jsx
+        ¦   ¦       Modal.jsx
+        ¦   ¦       
+        ¦   +---dashboard
+        ¦   ¦       AnalyticsTable.jsx
+        ¦   ¦       Charts.jsx
+        ¦   ¦       RecentPredictions.jsx
+        ¦   ¦       StatsCard.jsx
+        ¦   ¦       
+        ¦   +---layout
+        ¦   ¦       Footer.jsx
+        ¦   ¦       Layout.jsx
+        ¦   ¦       Navbar.jsx
+        ¦   ¦       Sidebar.jsx
+        ¦   ¦       
+        ¦   +---prediction
+        ¦           ConfidenceMeter.jsx
+        ¦           DocumentsList.jsx
+        ¦           EligibilityForm.jsx
+        ¦           PredictionCard.jsx
+        ¦           
+        +---constants
+        ¦       api.js
+        ¦       app.js
+        ¦       routes.js
+        ¦       
+        +---context
+        ¦       AppContext.jsx
+        ¦       ThemeContext.jsx
+        ¦       
+        +---hooks
+        ¦       useChat.js
+        ¦       usePrediction.js
+        ¦       useTheme.js
+        ¦       
+        +---pages
+        ¦       About.jsx
+        ¦       Assistant.jsx
+        ¦       Dashboard.jsx
+        ¦       Eligibility.jsx
+        ¦       Home.jsx
+        ¦       NotFound.jsx
+        ¦       Result.jsx
+        ¦       
+        +---routes
+        ¦       AppRoutes.jsx
+        ¦       
+        +---services
+        ¦       apiClient.js
+        ¦       mlService.js
+        ¦       orchestrateService.js
+        ¦       watsonService.js
+        ¦       
+        +---styles
+        ¦       globals.css
+        ¦       
+        +---utils
+                formatters.js
+                helpers.js
+                pdfGenerator.js
+                validators.js
+                
